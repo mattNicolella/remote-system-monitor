@@ -1,0 +1,31 @@
+{
+    "name": "system-resource-monitor",
+    "version": "1.0.0",
+    "description": "An application for exposing basic system utilization information over a json RESTful API",
+    "main": "index.js",
+    "scripts": {
+        "test": "electron-forge package && start out/system-resource-monitor-win32-x64/system-resource-monitor.exe",
+        "dev": "nodemon --ext js,json,ejs,mjs --exec npm start",
+        "start": "electron-forge start",
+        "package": "electron-forge package",
+        "make": "electron-forge make"
+    },
+    "author": "Matthew Nicolella",
+    "license": "ISC",
+    "dependencies": {
+        "ejs": "^3.1.10",
+        "electron-squirrel-startup": "^1.0.1",
+        "express": "^4.19.2"
+    },
+    "devDependencies": {
+        "@electron-forge/cli": "^7.4.0",
+        "@electron-forge/maker-deb": "^7.4.0",
+        "@electron-forge/maker-rpm": "^7.4.0",
+        "@electron-forge/maker-squirrel": "^7.4.0",
+        "@electron-forge/maker-zip": "^7.4.0",
+        "@electron-forge/plugin-auto-unpack-natives": "^7.4.0",
+        "@electron-forge/plugin-fuses": "^7.4.0",
+        "@electron/fuses": "^1.8.0",
+        "electron": "^31.0.1"
+    }
+}
