@@ -1,0 +1,391 @@
+<html>
+    <head>
+        <title>System Usage</title>
+        <script src="jquery-3.7.1.min.js"></script>
+        <link rel="stylesheet" href="bootstrap.min.css">
+        <link rel="stylesheet" href="bootstrap-theme.min.css">
+        <script src="bootstrap.min.js"></script>
+        <link rel="stylesheet" href="font-awesome.min.css">
+
+        <style>
+            .outputDiv .sysInfo {
+                padding: 0.75rem;
+            }
+
+            .sysInfo .inner {
+                border: 1px solid black;
+                border-radius: 10px !important;
+                padding: 1.5rem;
+                padding-top: 0;
+                box-shadow: 2px 5px 5px 2px #333;
+            }
+
+            .bar {
+                width: 80%;
+            }
+
+            .bar .barDiv {
+                background-color: #CCCCFF;
+                height: 20px;
+                width:20px;
+                display: inline-block;
+            }
+
+            .bar .barDiv.using {
+                background-color: #4499FF;
+            }
+
+            .head {
+                display: flex;
+            }
+
+            .head > div, .head > h3, .head > h4 {
+                flex: 1;
+            }
+
+            .head > div {
+                display: flex;
+                align-items: center;
+            }
+
+            .diskBreakdown {
+                /*font-weight: bold;*/
+                font-size: 16px;
+            }
+
+            .taskPercent {
+                position: absolute;
+                right: 0;
+            }
+
+            .task {
+                position: relative;
+            }
+
+            .timestamp {
+                position: absolute;
+                right:15px;
+                top:10px;
+                font-size: 12px;
+            }
+
+            .timestamp:before {
+                content: "Last Updated: ";
+            }
+
+            .timestamp:after {
+                font-family: FontAwesome;
+                content: " \f021";
+            }
+
+            .timestamp:hover {
+                cursor: pointer;
+            }
+
+            .actions {
+                position: absolute;
+                top: 10px;
+                left: 12px;
+            }
+
+            .actions a {
+                margin-left: 1rem;
+                cursor: pointer;
+                font-size: 12px;
+            }
+
+            .actions a.disabled {
+                pointer-events: none;
+                color: #ccc;
+            }
+        </style>
+    </head>
+
+    <body style="overflow: hidden;">
+        <div class="container-fluid">
+            <div class="row outputDiv"></div>
+        </div>
+
+        <script>
+            $(document).on('click', '.timestamp', function() {
+                const statType = $(this).closest('.sysInfo').data('type');
+
+                if(typeof systemInfo[statType] !== 'undefined')
+                    updateStats(statType);
+            })
+            .on('click', '.actions a', function() {
+                $.get(`${protocol}://${host}/api/json/v1/${$(this).text().toLowerCase()}/${$(this).closest('.sysInfo').data('type')}`, data => {
+                    console.log(data);
+                    updateStats();
+                });
+            });
+
+            const params = new Proxy(new URLSearchParams(window.location.search), {
+                get: (searchParams, prop) => searchParams.get(prop),
+            });
+
+            let host = window.location.host;
+            if(typeof params.host !== 'undefined' && params.host) {
+                host = params.host;
+            }
+
+            let protocol = "http";
+            if(typeof params.protocol !== 'undefined' && params.protocol) {
+                protocol = params.protocol;
+            }
+
+            let systemInfo = {};
+            function updateStats(target = 'all') {
+                $.get(`${protocol}://${host}/api/json/v1/system/${target}`, data => {
+                    try {
+                        if(target == 'all')
+                            systemInfo = data;
+                        else
+                            systemInfo[target] = data;
+
+                        const diskUsage = (systemInfo.disk.PercentDiskTime <= 100 ? systemInfo.disk.PercentDiskTime : 100).slice(0,4);
+
+                        $('.outputDiv').html(
+                            `<div class="col-md-4 sysInfo" data-type="cpu">
+                                <div class="inner" style="background-color:${getUsageColor(systemInfo.cpu.cpuUsage)}">
+                                    <div class="row head">
+                                        <h3 class="col-sm-6">CPU Usage: ${systemInfo.cpu.cpuUsage}%</h3>
+
+                                        <div class="col-sm-6">
+                                            <div class="bar" data-usage="${systemInfo.cpu.cpuUsage}"></div>
+                                        </div>
+
+                                        <span class="timestamp">${getTime(systemInfo.cpu.lastUpdated)}</span>
+                                        <div class="actions">
+                                            <a class="start ${systemInfo.cpu.running ? "disabled" : ""}">Start</a>
+                                            <a class="stop ${!systemInfo.cpu.running ? "disabled" : ""}">Stop</a>
+                                            <a class="restart ${!systemInfo.cpu.running ? "disabled" : ""}">Restart</a>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-xs-8">
+                                            <h4>Cpu Name: ${systemInfo.cpu.cpuName}</h4>
+                                            <h4>Cpu Cores: ${systemInfo.cpu.cpuCores}</h4>
+                                        </div>
+
+                                        <div class="col-xs-4 cpuTasks"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4 sysInfo" data-type="ram">
+                                <div class="inner" style="background-color:${getUsageColor(systemInfo.ram.PercentUsage)}">
+                                    <div class="row head">
+                                        <h3 class="col-md-6">Ram Usage: ${systemInfo.ram.PercentUsage}%</h3>
+
+                                        <div class="col-sm-6">
+                                            <div class="bar" data-usage="${systemInfo.ram.PercentUsage}"></div>
+                                        </div>
+
+                                        <span class="timestamp">${getTime(systemInfo.ram.lastUpdated)}</span>
+                                        <div class="actions">
+                                            <a class="start ${systemInfo.ram.running ? "disabled" : ""}">Start</a>
+                                            <a class="stop ${!systemInfo.ram.running ? "disabled" : ""}">Stop</a>
+                                            <a class="restart ${!systemInfo.ram.running ? "disabled" : ""}">Restart</a>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-xs-6">
+                                            <h4>Available Ram: ${(systemInfo.ram.AvailMemory/1024).toFixed(2)}GB</h4>
+                                            <h4>Ram Used: ${(systemInfo.ram.UsedMemory/1024).toFixed(2)}GB</h4>
+                                            <h4>Total Ram: ${systemInfo.ram.TotalMemGig}GB</h4>
+                                        </div>
+
+                                        <div class="col-xs-6 memTasks"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4 sysInfo" data-type="disk">
+                                <div class="inner" style="background-color:${getUsageColor(diskUsage)}">
+                                    <div class="row head">
+                                        <h3 class="col-md-6">Disk Usage: ${diskUsage}%</h3>
+
+                                        <div class="col-sm-6">
+                                            <div class="bar" data-usage="${diskUsage}"></div>
+                                        </div>
+
+                                        <span class="timestamp">${getTime(systemInfo.disk.lastUpdated)}</span>
+                                        <div class="actions">
+                                            <a class="start ${systemInfo.disk.running ? "disabled" : ""}">Start</a>
+                                            <a class="stop ${!systemInfo.disk.running ? "disabled" : ""}">Stop</a>
+                                            <a class="restart ${!systemInfo.disk.running ? "disabled" : ""}">Restart</a>
+                                        </div>
+                                    </div>
+
+                                    <div class="row diskList"></div>
+                                </div>
+                            </div>`
+                        );
+
+                        for(const disk of systemInfo.disk.disks) {
+                            $('.diskList').append(
+                                `<div class="row">
+                                    <div class="col-xs-1"></div>
+                                
+                                    <div class="col-xs-10">
+                                        <div class="row">
+                                            <div class="col-xs-8">
+                                                <span class="diskBreakdown">${disk.DriveLetter}\\${disk.Name}   (${(disk.DiskTime > 100 ? 100 : disk.DiskTime)}% Load)</span>
+                                            </div>
+
+                                            <div class="col-xs-4">
+                                                <div class="bar" data-usage="${(disk.DiskTime > 100 ? 100 : disk.DiskTime)}"></div>
+                                            </div>
+                                        </div>
+
+                                        &emsp;<span>${disk.FreeSpace}GB / ${disk.TotalSize}GB (${disk.FreePercent}% Free Space)</span>
+                                    </div>
+                                </div>`
+                            )
+                        }
+
+                        const taskLimit = 4;
+
+                        for(let i = 0; i < systemInfo.cpu.tasks.length && i < taskLimit; i++) {
+                            task = systemInfo.cpu.tasks[i];
+
+                            let taskName = task.TaskName,
+                                title = '';
+
+                            const maxLength = 18;
+                            if(taskName.length > maxLength) {
+                                taskName = taskName.slice(0, maxLength-2) + '..';
+                                title = task.TaskName;
+                            }
+
+                            $('.cpuTasks').append(
+                                `<div class="task">
+                                    <span class="taskTitle" ${title ? `title="${title}"`:''}>${taskName}</span>
+                                    <span class="taskPercent"><b>${task.Usage}%</b></span>
+                                </div>`
+                            );
+                        }
+
+                        const ramTasks = [];
+                        for(let i = 0; i < systemInfo.ram.tasks.length; i++) {
+                            task = systemInfo.ram.tasks[i];
+                            if(typeof ramTasks[task.TaskName] === 'undefined')
+                                ramTasks[task.TaskName] = task.UsageMb;
+                            else
+                                ramTasks[task.TaskName] += task.UsageMb;
+                        }
+
+                        //console.log(ramTasks);
+                        const sortedRam = [];
+                        for(const taskName in ramTasks){
+                            sortedRam.push({
+                                taskName,
+                                usage: ramTasks[taskName]
+                            });
+                        }
+
+                        sortedRam.sort((x, y) => {
+                            if(x.usage > y.usage)
+                                return -1;
+                            else if(x.usage < y.usage)
+                                return 1;
+                            else
+                                return 0;
+
+                            return x.usage > y.usage;
+                        });
+
+                        //console.log(sortedRam);
+
+                        for(let i = 0; i < sortedRam.length && i < taskLimit; i++) {
+                            task = sortedRam[i];
+
+                            let taskName = task.taskName.replaceAll(".exe", ""),
+                                title = '';
+
+                            const maxLength = 16;
+                            if(taskName.length > maxLength) {
+                                taskName = taskName.slice(0, maxLength-2) + '..';
+                                title = task.TaskName;
+                            }
+
+                            $('.memTasks').append(
+                                `<div class="task">
+                                    <span class="taskTitle" ${title ? `title="${title}"`:''}>${taskName}</span>
+                                    <span class="taskPercent"><b>${(task.usage > 1024 ? (task.usage / 1024).toFixed(2)+'Gb' : task.usage+'Mb')}</b> (${((task.usage / systemInfo.ram.TotalMemMeg) * 100).toFixed(0)}%)</span>
+                                </div>`
+                            );
+                        }
+
+                        const resolution = 40;
+                        $('.bar').each(function() {
+                            let eachWidth = ($(this).width().toFixed(0)-1)/resolution;
+                            for(let i = 0; i < resolution; i++) {
+                                $(this).append(`<div style="width:${eachWidth}px;" class="barDiv ${$(this).data('usage') > ((100/resolution)*i) ? 'using' : ''}"></div>`);
+                            }
+                        })
+
+                        //console.log('success');
+                    } catch(e) {
+                        console.log(data);
+                        console.log('Broken', e.toString());
+                        //clearInterval(usageInterval);
+                    }
+                });
+            }
+
+            function getUsageColor(percent) {
+                let ranges = [
+                    {
+                        upper: 30,
+                        lower: -1,
+                        color: 'FFFFFF'
+                    },
+                    {
+                        upper: 50,
+                        lower: 30,
+                        color: 'EBCE46'
+                    },
+                    {
+                        upper: 65,
+                        lower: 50,
+                        color: 'DF9620'
+                    },
+                    {
+                        upper: 80,
+                        lower: 65,
+                        color: 'df7320'
+                    },
+                    {
+                        upper: 90,
+                        lower: 80,
+                        color: 'df4d20'
+                    },
+                    {
+                        upper: 1000,
+                        lower: 90,
+                        color: 'EB371A'
+                    }
+                ];
+
+                for(const range of ranges) {
+                    if(percent > range.lower && percent <= range.upper) {
+                        return range.color;
+                    }
+                }
+            }
+
+            function getTime(timestamp)  {
+                const date = new Date(timestamp);
+                return `${('00'+date.getMonth()).slice(-2)}/${('00'+date.getDate()).slice(-2)}/${('0000'+date.getFullYear()).slice(-4)} ${('00'+date.getHours()).slice(-2)}:${('00'+date.getMinutes()).slice(-2)}:${('00'+date.getSeconds()).slice(-2)}`;
+            }
+
+            updateStats();
+
+            let usageInterval = setInterval(updateStats, 2 * 1000);
+        </script>
+    </body>
+</html>

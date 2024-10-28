@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <%- include('../partials/head.ejs'); %>
+    </head>
+
+    <body>
+        <%- include('../partials/header.ejs'); %>
+
+        <form id="main" class="container-fluid" method="POST" action="/saveSettings">
+            <div class="row">
+                <div class="col-sm-6">
+                    <%let curCount = 0,
+                        keyCount = Object.keys(settings).length;
+
+                    for(const setting in serverSettings) {
+                        if((keyCount/2).toFixed(0) == curCount) {%>
+                            </div><div class="col-sm-6">
+                        <%}
+                        
+                        curCount++;
+                        
+                        let settingName = setting.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+                        settingName[0] = settingName[0].toUpperCase();%>
+
+                        <div class="row">
+                            <label class="col-sm-4"><%=settingName%></label>
+                            <div class="col-sm-6"><input type=text class="form-control" name="<%=setting%>" value="<%=serverSettings[setting]%>"></div>
+                        </div>
+                    <%}%>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12" style="text-align:center;">
+                    <button class="btn btn-primary">Save</button>
+                </div>
+            </div>
+        </form>
+    </body>
+
+    <footer>
+        <%- include('../partials/footer.ejs'); %>
+    </footer>
+</html>
